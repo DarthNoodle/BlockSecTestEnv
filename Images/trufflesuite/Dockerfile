@@ -38,4 +38,10 @@ ENV NMEMONIC ''
 
 EXPOSE 8545
 
-ENTRYPOINT ["ganache-cli", "--host 0.0.0.0", "-m '${NMEMONIC}'"]
+ENTRYPOINT ["bash", "-c", "ganache-cli -m '${NMEMONIC}'"]
+
+# Spin up the container but jump to a bash shell (good for debugging and messing around) 
+# docker run --rm -it --entrypoint bash noodleware/ganache
+
+# Spin up a new/fresh network with a specific nmemonic
+# docker run -d -e NMEMONIC="sick item plug chalk sock viable grief keen daughter tank mix april" noodleware/ganache

@@ -26,7 +26,7 @@ services:
         --providers.docker.exposedbydefault=false
         --entrypoints.http.address=:80/tcp
         --entrypoints.https.address=:443/tcp
-        --entrypoints.val01-testnet-jsonrpc.address=:8545
+        --entrypoints.val01-testnet-jsonrpc.address=:7545
         --entrypoints.val01-prod-jsonrpc.address=:8545
         --entrypoints.web.http.redirections.entrypoint.to=https
         --entrypoints.web.http.redirections.entrypoint.scheme=https
@@ -72,7 +72,7 @@ services:
     labels:
       traefik.enable: true
       traefik.http.routers.val01.rule: Host(`val01.noodlenet.local`)
-      # Setup both plaintext and TLS TCP passthrough
+      # Setup both plaintext and TLS TCP passthrough`
       traefik.tcp.routers.val01-testnet-jsonrpc-insecure.rule: HostSNI(`*`)
       traefik.tcp.routers.val01-testnet-jsonrpc-insecure.entrypoints: val01-testnet-jsonrpc
       traefik.tcp.routers.val01-testnet-jsonrpc-secure.rule: HostSNI(`val01.noodlenet.local`)
