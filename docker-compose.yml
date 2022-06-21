@@ -1,0 +1,100 @@
+version: "3"
+
+#docker stop $(docker ps -a -q)
+#docker rm $(docker ps -a -q)
+
+
+
+# This repo looks interesting, investigate further
+#https://github.com/RyanHendricks/docker-regen
+
+services:
+  traefik:
+    image: traefik
+    container_name: revproxy
+    command: >
+        --serversTransport.insecureSkipVerify=true
+        --api.insecure=true
+        --api=true
+        --log=true
+        --log.level=DEBUG
+        --accessLog=true
+        --accessLog.filePath=/traefik.log
+        --accessLog.bufferingSize=100
+        --providers.docker=true
+        --providers.docker.endpoint=unix:///var/run/docker.sock
+        --providers.docker.exposedbydefault=false
+        --entrypoints.http.address=:80/tcp
+        --entrypoints.https.address=:443/tcp
+        --entrypoints.val01-testnet-jsonrpc.address=:8545
+        --entrypoints.val01-prod-jsonrpc.address=:8545
+        --entrypoints.web.http.redirections.entrypoint.to=https
+        --entrypoints.web.http.redirections.entrypoint.scheme=https
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80" #generic http entrypoint
+      - "443:443" #generic https entrypoint
+      - "8080:8080" #traefik web ui
+      - "7545:7545" #http rpc - testnet
+      - "8545:8545" #http rpc - prod
+    volumes:
+    # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock:ro # ENSURE READ-ONLY
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.noodlenet.local`)"
+    depends_on:
+      - val01 # Start the validator so we are producing blocks
+
+  # useful log viewer for running and crashed containers
+  logserver:
+    container_name: logserver
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # ENSURE READ-ONLY
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.logserver.rule=Host(`logs.noodlenet.local`)"
+      - "traefik.http.services.logserver.loadbalancer.server.port=8080"
+
+
+  # Validator/ Block Producer - we just want to produce blocks
+  val01:
+    build:
+      context: ./Images/trufflesuite
+      dockerfile: Dockerfile
+      target: ganache
+    image: noodleware/ganache
+    container_name: val01
+    volumes:
+      - ./environment.testing:/etc/environment:ro
+    labels:
+      traefik.enable: true
+      traefik.http.routers.val01.rule: Host(`val01.noodlenet.local`)
+      # Setup both plaintext and TLS TCP passthrough
+      traefik.tcp.routers.val01-testnet-jsonrpc-insecure.rule: HostSNI(`*`)
+      traefik.tcp.routers.val01-testnet-jsonrpc-insecure.entrypoints: val01-testnet-jsonrpc
+      traefik.tcp.routers.val01-testnet-jsonrpc-secure.rule: HostSNI(`val01.noodlenet.local`)
+      traefik.tcp.routers.val01-testnet-jsonrpc-secure.tls: true
+      traefik.tcp.routers.val01-testnet-jsonrpc-secure.entrypoints: val01-testnet-jsonrpc
+      #
+      traefik.tcp.routers.val01-prod-jsonrpc-insecure.rule: HostSNI(`*`)
+      traefik.tcp.routers.val01-prod-jsonrpc-insecure.entrypoints: val01-prod-jsonrpc
+      traefik.tcp.routers.val01-prod-jsonrpc-secure.rule: HostSNI(`val01.noodlenet.local`)
+      traefik.tcp.routers.val01-prod-jsonrpc-secure.tls: true
+      traefik.tcp.routers.val01-prod-jsonrpc-secure.entrypoints: val01-prod-jsonrpc
+
+  # Nethereum Explorer, Blazor WASM - Client Side Explorer Talks To Any EVM Chain 
+  # (One instance for multiple chains, uses local storage to store networks)
+  explorer:
+    build:
+      context: ./Images/explorer
+      dockerfile: Dockerfile # yes i know im using nginx in the image when i dont need to, it makes the image standalone
+    image: noodleware/lightexplorer
+    container_name: explorer
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.explorer.rule=Host(`explorer.noodlenet.local`)"
+      - "traefik.http.services.explorer.loadbalancer.server.port=80"
+
