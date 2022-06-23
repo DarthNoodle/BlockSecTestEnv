@@ -1,5 +1,5 @@
-#Author
-# https://www.joshfinnie.com/blog/getting-truffle-and-ganache-working-with-docker/
+#Prior Works:
+#   https://www.joshfinnie.com/blog/getting-truffle-and-ganache-working-with-docker/
 
 
 FROM node:16-bullseye-slim as base
@@ -38,7 +38,8 @@ ENV NMEMONIC ''
 
 EXPOSE 8545
 
-ENTRYPOINT ["bash", "-c", "ganache-cli -m '${NMEMONIC}'"]
+# This differs from the Orig Author, to use ENV variables you need to exec this way.
+ENTRYPOINT ["bash", "-c", "ganache-cli -h 0.0.0.0 -m '${NMEMONIC}'"]
 
 # Spin up the container but jump to a bash shell (good for debugging and messing around) 
 # docker run --rm -it --entrypoint bash noodleware/ganache
